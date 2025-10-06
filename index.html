@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>VocalizeData</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <style>
+    /* [unchanged styles, same as before] */
+
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #f4f7fa;
+      color: #333;
+      padding: 20px;
+      text-align: center;
+    }
+
+    header {
+      margin-bottom: 40px;
+    }
+    
+
+    header h1 {
+      font-size: 48px;
+      color: #1a237e;
+      margin: 0;
+    }
+
+    header p {
+      font-size: 20px;
+      color: #3f51b5;
+      margin-top: 10px;
+      font-style: italic;
+    }
+
+    button, label, select {
+      padding: 14px 30px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      margin: 10px;
+      color: white;
+      cursor: pointer;
+    }
+
+    button {
+      background: purple;
+    }
+
+    button:hover {
+      background: #0056b3;
+    }
+
+    label {
+      background: #28a745;
+    }
+
+    label:hover {
+      background: #1e7e34;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    #image-strip {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin: 40px 0 10px;
+      flex-wrap: wrap;
+    }
+
+    #image-strip img {
+      width: 150px;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    #table-container {
+      max-height: 400px;
+      overflow: auto;
+      margin: 40px auto;
+      width: 90%;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 10px;
+      resize: vertical;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    td {
+      padding: 15px;
+      border: 1px solid #ddd;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    td:focus {
+      outline: 2px solid #007bff;
+      background-color: #eaf4ff;
+    }
+
+    #status {
+      margin-top: 20px;
+      font-size: 18px;
+      color: #444;
+    }
+
+    #chart-container-wrapper {
+      margin: 40px auto;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .chart-scroll-container {
+      max-height: 400px;
+      overflow: auto;
+      background: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      padding: 10px;
+      resize: vertical;
+      position: relative;
+    }
+
+    .chart-buttons {
+      position: absolute;
+      top: 5px;
+      right: 5px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .chart-buttons button {
+      background: red;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .chart-buttons button.save-btn {
+      background: #4caf50;
+    }
+
+    .chart-buttons button:hover {
+      opacity: 0.9;
+    }
+
+    #chart-controls {
+      margin-top: 20px;
+    }
+
+    #chart-controls input {
+      padding: 10px;
+      margin: 0 5px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    select {
+      color: black;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>VocalizeData</h1>
+    <p>Giving your Data a Voice</p>
+  </header>
+
+  <button onclick="startSpeech()">🎙️ Start Speaking</button>
+  <button onclick="exportTableToExcel()">📁 Export to Excel</button>
+  <button onclick="cleanData()">🧹 Clean Data</button>
+  <label for="fileInput">📂 Import from Excel</label>
+  <input type="file" id="fileInput" accept=".xlsx" onchange="importFromExcel()" />
+  <button onclick="generateTablePDF()">📄 Make Table PDF</button>
+  <button onclick="generateChartsPDF()">📄 Make Charts PDF</button>
+  <button onclick="generateMySQLCode()" style="background-color:#FF9800; margin-left:8px;">📝 MySQL Code</button>
+
+  <a href="analytics.html">
+  <button style="background-color:#3f51b5;color:white;padding:10px 20px;border:none;border-radius:5px;font-weight:bold;margin:20px;">
+    Go to Analytics
+  </button>
+</a>
+
+
+  <div id="chart-controls">
+    <select id="chartType">
+      <option value="">Select Chart Type</option>
+      <option value="bar">Bar</option>
+      <option value="line">Line</option>
+      <option value="pie">Pie</option>
+      <option value="scatter">Scatter</option>
+    </select>
+    <input type="text" id="xLabel" placeholder="Enter X-axis Column name">
+    <input type="text" id="yLabel" placeholder="Enter Y-axis Column name">
+    <button onclick="generateChart()">📊 Create Chart</button>
+  </div>
+
+  <div id="image-strip">
+    <img src="https://datahubanalytics.com/wp-content/uploads/2024/04/ai-dataanalytics-dha.jpeg" alt="AI">
+    <img src="https://assets.everspringpartners.com/dims4/default/e797ff3/2147483647/strip/true/crop/620x250+0+0/resize/620x250!/quality/90/?url=http%3A%2F%2Feverspring-brightspot.s3.us-east-1.amazonaws.com%2Fe4%2F2a%2Fe9a3904c4f17a084c100bbbb5eca%2Fdata-visualization-for-accountants-620x250.jpg" alt="Chart">
+    <img src="https://viitorcloudblog.s3.ap-south-1.amazonaws.com/blog/wp-content/uploads/2023/10/13155241/AI-in-Big-Data-Analytics.png" alt="Data">
+  </div>
+
+  <div id="status">Click "Start Speaking" and speak your data.</div>
+
+  <div id="table-container">
+    <table id="output-table"><tbody></tbody></table>
+  </div>
+
+  <div id="chart-container-wrapper"></div>
+
+  <script>
+    let recognition;
+    if ('webkitSpeechRecognition' in window) recognition = new webkitSpeechRecognition();
+    else if ('SpeechRecognition' in window) recognition = new SpeechRecognition();
+    else alert("Speech recognition not supported. Use Google Chrome.");
+
+    recognition.lang = 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+
+    function startSpeech() {
+      document.getElementById('status').innerText = 'Listening... Speak now.';
+      recognition.start();
+      recognition.onresult = function (event) {
+        const transcript = event.results[0][0].transcript.trim();
+        const words = transcript.split(" ");
+        const row = document.createElement("tr");
+        words.forEach(word => {
+          const cell = document.createElement("td");
+          cell.innerText = word;
+          cell.contentEditable = true;
+          row.appendChild(cell);
+        });
+        document.querySelector("#output-table tbody").appendChild(row);
+        document.getElementById('status').innerText = 'Speech added as row.';
+      };
+      recognition.onerror = e => {
+        document.getElementById('status').innerText = 'Error: ' + e.error;
+      };
+    }
+    function saveTableToLocalStorage() {
+  const table = document.getElementById('output-table');
+  const rows = Array.from(table.querySelectorAll("tr"));
+  const tableData = rows.map(row => {
+    return Array.from(row.querySelectorAll("td")).map(td => td.innerText.trim());
+  });
+  localStorage.setItem("datasetTable", JSON.stringify(tableData));
+}
+
+
+    function exportTableToExcel() {
+      const table = document.getElementById("output-table");
+      const wb = XLSX.utils.table_to_book(table, { sheet: "Sheet1" });
+      XLSX.writeFile(wb, "voice_table_data.xlsx");
+    }
+
+    function importFromExcel() {
+      const file = document.getElementById('fileInput').files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+        const tbody = document.querySelector("#output-table tbody");
+        tbody.innerHTML = "";
+        json.forEach(rowData => {
+          const row = document.createElement("tr");
+          rowData.forEach(cellData => {
+            const cell = document.createElement("td");
+            cell.textContent = cellData;
+            cell.contentEditable = true;
+            row.appendChild(cell);
+          });
+          tbody.appendChild(row);
+        });
+        document.getElementById('status').innerText = 'Excel data loaded successfully.';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+    function sendToAnalytics() {
+  const table = document.getElementById('output-table');
+  const rows = Array.from(table.querySelectorAll("tr"));
+  const tableData = rows.map(row =>
+    Array.from(row.querySelectorAll("td")).map(td => td.innerText.trim())
+  );
+  sessionStorage.setItem("voiceDataset", JSON.stringify(tableData));
+  window.open("analytics.html", "_blank"); // Adjust file name if different
+}
+
+    function saveTableToLocalStorage() {
+  const table = document.getElementById('output-table');
+  const rows = Array.from(table.querySelectorAll("tr"));
+  const tableData = rows.map(row => {
+    return Array.from(row.querySelectorAll("td")).map(td => td.innerText.trim());
+  });
+  localStorage.setItem("datasetTable", JSON.stringify(tableData));
+}
+
+    
+
+    function cleanData() {
+      const rows = document.querySelectorAll("#output-table tr");
+      const seen = new Set();
+      rows.forEach(row => {
+        let key = "";
+        row.querySelectorAll("td").forEach(cell => {
+          cell.innerText = cell.innerText.trim();
+          key += cell.innerText + "|";
+        });
+        if (seen.has(key)) row.remove();
+        else seen.add(key);
+      });
+      document.getElementById('status').innerText = 'Data cleaned.';
+    }
+
+    function generateChart() {
+  const type = document.getElementById('chartType').value;
+  const labelColName = document.getElementById('xLabel').value;
+  const valueColName = document.getElementById('yLabel').value;
+  if (!type || !labelColName || !valueColName) {
+    alert("Please select chart type and enter X and Y labels.");
+    return;
+  }
+
+  const table = document.getElementById("output-table");
+  const rows = Array.from(table.querySelectorAll("tr"));
+  if (rows.length < 1) return alert("Not enough data to chart");
+
+  const headerCells = Array.from(rows[0].querySelectorAll("td"));
+  const labelIndex = headerCells.findIndex(td => td.innerText.trim().toLowerCase() === labelColName.toLowerCase());
+  const valueIndex = headerCells.findIndex(td => td.innerText.trim().toLowerCase() === valueColName.toLowerCase());
+  if (labelIndex === -1 || valueIndex === -1) return alert("Invalid column names.");
+
+  const labels = [], values = [];
+  rows.slice(1).forEach(row => {
+    const cells = row.querySelectorAll("td");
+    if (cells.length > Math.max(labelIndex, valueIndex)) {
+      const label = cells[labelIndex].innerText.trim();
+      const value = parseFloat(cells[valueIndex].innerText.trim());
+      if (!isNaN(value)) {
+        labels.push(label);
+        values.push(value);
+      }
+    }
+  });
+
+  const chartWrapper = document.createElement('div');
+  chartWrapper.className = 'chart-scroll-container';
+
+  const btnContainer = document.createElement('div');
+  btnContainer.className = 'chart-buttons';
+
+  const delBtn = document.createElement('button');
+  delBtn.innerText = 'Delete';
+  delBtn.onclick = () => {
+    if (confirm("Are you sure you want to delete this chart?")) {
+      chartWrapper.remove();
+    }
+  };
+
+  const saveBtn = document.createElement('button');
+  saveBtn.innerText = 'Save';
+  saveBtn.className = 'save-btn';
+  saveBtn.onclick = () => {
+    const filename = prompt("Enter filename for image:");
+    if (!filename) return;
+    const link = document.createElement('a');
+    link.download = filename + '.png';
+    link.href = canvas.toDataURL();
+    link.click();
+  };
+
+  const codeBtn = document.createElement('button');
+  codeBtn.innerHTML = 'Generate Code ▽';
+  codeBtn.style.backgroundColor = '#9C27B0';
+  codeBtn.style.marginLeft = '8px';
+
+  btnContainer.appendChild(codeBtn);
+  btnContainer.appendChild(saveBtn);
+  btnContainer.appendChild(delBtn);
+  chartWrapper.appendChild(btnContainer);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 400;
+  chartWrapper.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  const chartInstance = new Chart(ctx, {
+    type: type,
+    data: {
+      labels: labels,
+      datasets: [{
+        label: `Chart: ${type}`,
+        data: values,
+        backgroundColor: type === 'pie'
+          ? labels.map((_, i) => `hsl(${i * 360 / labels.length}, 70%, 60%)`)
+          : '#3f51b5'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: 'Custom Chart from Voice Data' }
+      }
+    }
+  });
+
+  // Attach code generation actions
+  codeBtn.onclick = (e) => showCodeMenu(e, chartInstance, type, labels, values);
+
+  const pyBtn = document.createElement('button');
+  pyBtn.innerText = '🧠 Generate Python Code';
+  pyBtn.style.backgroundColor = '#ff9800';
+  pyBtn.style.marginLeft = '8px';
+  pyBtn.onclick = () => generatePythonOnlyCode(chartInstance, type, labels, values);
+  btnContainer.appendChild(pyBtn);
+
+  const rBtn = document.createElement('button');
+rBtn.innerText = '🟦 Generate R Code';
+rBtn.style.backgroundColor = '#2196F3'; // Blue
+rBtn.style.marginLeft = '8px';
+rBtn.onclick = () => generateROnlyCode(chartInstance, type, labels, values);
+btnContainer.appendChild(rBtn);
+
+
+  document.getElementById('chart-container-wrapper').appendChild(chartWrapper);
+
+  document.getElementById('status').innerText = `Chart (${type}) generated.`;
+}
+
+function generatePythonOnlyCode(chart, chartType, labels, data) {
+  const colors = ['#3f51b5', '#ff5722', '#4caf50', '#9c27b5'];
+  const title = chart.config.options.plugins.title?.text || 'My Chart';
+
+  let code = `import matplotlib.pyplot as plt\nimport numpy as np\n\n`;
+  code += `# Data\nlabels = ${JSON.stringify(labels)}\ndata = ${JSON.stringify(data)}\n\n`;
+  code += `# Chart\nplt.figure(figsize=(8, 6))\n`;
+
+  switch(chartType) {
+    case 'bar':
+      code += `plt.bar(labels, data, color='${colors[0]}')\n`; break;
+    case 'pie':
+      code += `plt.pie(data, labels=labels, colors=${JSON.stringify(colors.slice(0, data.length))}, autopct='%1.1f%%')\n`; break;
+    case 'line':
+      code += `plt.plot(labels, data, color='${colors[0]}', marker='o', linestyle='-')\n`; break;
+    case 'scatter':
+      code += `plt.scatter(labels, data, color='${colors[0]}', s=100)\n`; break;
+  }
+
+  code += `plt.title('${title}')\nplt.xlabel('X Axis')\nplt.ylabel('Y Axis')\nplt.xticks(rotation=45)\nplt.tight_layout()\nplt.show()`;
+
+  const container = chart.canvas.parentNode;
+  const existing = container.querySelector('.code-container');
+  if (existing) existing.remove();
+
+  const codeContainer = document.createElement('div');
+  codeContainer.className = 'code-container';
+  codeContainer.style.marginTop = '20px';
+  codeContainer.style.background = '#f5f5f5';
+  codeContainer.style.borderLeft = '4px solid #3f51b5';
+  codeContainer.style.padding = '10px';
+  codeContainer.style.borderRadius = '5px';
+
+  const pre = document.createElement('pre');
+  pre.textContent = code;
+
+  const downloadBtn = document.createElement('button');
+  downloadBtn.textContent = '📥 Download Code';
+  downloadBtn.style.marginTop = '10px';
+  downloadBtn.style.backgroundColor = '#4CAF50';
+  downloadBtn.style.color = 'white';
+  downloadBtn.style.border = 'none';
+  downloadBtn.style.padding = '8px 16px';
+  downloadBtn.style.borderRadius = '4px';
+  downloadBtn.onclick = () => downloadCode(code, 'python');
+
+  codeContainer.append(pre, downloadBtn);
+  container.appendChild(codeContainer);
+}
+
+function generateROnlyCode(chart, chartType, labels, data) {
+  const colors = ['#3f51b5', '#ff5722', '#4caf50', '#9c27b5'];
+  const title = chart.config.options.plugins.title?.text || 'My Chart';
+
+  let code = `# Load libraries\nlibrary(ggplot2)\n\n`;
+  code += `# Prepare Data\ndata <- data.frame(\n  label = ${JSON.stringify(labels)},\n  value = ${JSON.stringify(data)}\n)\n\n`;
+
+  // Start plot
+  code += `# Create Chart\nplot <- ggplot(data, aes(x=label, y=value)) +\n`;
+
+  switch (chartType) {
+    case 'bar':
+      code += `  geom_col(fill="${colors[0]}") +\n`;
+      break;
+    case 'pie':
+      code += `  geom_bar(aes(fill=label), stat="identity", width=1) +\n`;
+      code += `  coord_polar("y") +\n`;
+      code += `  scale_fill_manual(values=${JSON.stringify(colors.slice(0, data.length))}) +\n`;
+      break;
+    case 'line':
+      code += `  geom_line(color="${colors[0]}", group=1, size=1) +\n`;
+      code += `  geom_point(color="${colors[0]}", size=3) +\n`;
+      break;
+    case 'scatter':
+      code += `  geom_point(color="${colors[0]}", size=3) +\n`;
+      break;
+  }
+
+  code += `  ggtitle("${title}") +\n`;
+  code += `  xlab("X Axis") +\n`;
+  code += `  ylab("Y Axis") +\n`;
+  code += `  theme(axis.text.x = element_text(angle = 45, hjust = 1))\n\n`;
+  code += `print(plot)\n`;
+
+  // Show code block
+  const container = chart.canvas.parentNode;
+  const existing = container.querySelector('.code-container');
+  if (existing) existing.remove();
+
+  const codeContainer = document.createElement('div');
+  codeContainer.className = 'code-container';
+  codeContainer.style.marginTop = '20px';
+  codeContainer.style.background = '#f5f5f5';
+  codeContainer.style.borderLeft = '4px solid #2196F3';
+  codeContainer.style.padding = '10px';
+  codeContainer.style.borderRadius = '5px';
+
+  const pre = document.createElement('pre');
+  pre.textContent = code;
+
+  const downloadBtn = document.createElement('button');
+  downloadBtn.textContent = '📥 Download Code';
+  downloadBtn.style.marginTop = '10px';
+  downloadBtn.style.backgroundColor = '#2196F3';
+  downloadBtn.style.color = 'white';
+  downloadBtn.style.border = 'none';
+  downloadBtn.style.padding = '8px 16px';
+  downloadBtn.style.borderRadius = '4px';
+  downloadBtn.onclick = () => downloadCode(code, 'r');
+
+  codeContainer.append(pre, downloadBtn);
+  container.appendChild(codeContainer);
+}
+
+function showCodeMenu(event, chart, chartType, labels, data) {
+  // Close any existing menu first
+  const oldMenu = event.target.parentNode.querySelector('.code-menu');
+  if (oldMenu) oldMenu.remove();
+
+  // Create menu container
+  const menu = document.createElement('div');
+  menu.className = 'code-menu';
+  menu.style.position = 'absolute';
+  menu.style.right = '0';
+  menu.style.bottom = '100%';
+  menu.style.backgroundColor = 'white';
+  menu.style.borderRadius = '6px';
+  menu.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+  menu.style.zIndex = '1000';
+  menu.style.padding = '8px 0';
+  menu.style.minWidth = '200px';
+
+  // Prevent clicks inside menu from closing it
+  menu.addEventListener('click', (e) => e.stopPropagation());
+
+  // Python option
+  const pythonBtn = document.createElement('button');
+  pythonBtn.textContent = 'Python (Matplotlib)';
+  pythonBtn.style.display = 'block';
+  pythonBtn.style.width = '100%';
+  pythonBtn.style.textAlign = 'left';
+  pythonBtn.style.padding = '8px 16px';
+  pythonBtn.style.border = 'none';
+  pythonBtn.style.background = 'none';
+  pythonBtn.style.cursor = 'pointer';
+  pythonBtn.onclick = () => {
+    generateCode('python', chart, chartType, labels, data);
+    menu.remove();
+  };
+
+  // R option
+  const rBtn = document.createElement('button');
+  rBtn.textContent = 'R (ggplot2)';
+  rBtn.style.display = 'block';
+  rBtn.style.width = '100%';
+  rBtn.style.textAlign = 'left';
+  rBtn.style.padding = '8px 16px';
+  rBtn.style.border = 'none';
+  rBtn.style.background = 'none';
+  rBtn.style.cursor = 'pointer';
+  rBtn.onclick = () => {
+    generateCode('r', chart, chartType, labels, data);
+    menu.remove();
+  };
+
+  menu.append(pythonBtn, rBtn);
+  event.target.parentNode.appendChild(menu);
+
+  // Close menu when clicking elsewhere
+  setTimeout(() => {
+    document.addEventListener('click', () => menu.remove(), { once: true });
+  });
+}
+
+function generateCode(lang, chart, chartType, labels, data) {
+  let code = '';
+  const colors = ['#3f51b5', '#ff5722', '#4caf50', '#9c27b5'];
+  const title = chart.config.options.plugins.title?.text || 'My Chart';
+
+  if (lang === 'python') {
+    code += `import matplotlib.pyplot as plt\nimport numpy as np\n\n`;
+    code += `# Data\nlabels = ${JSON.stringify(labels)}\ndata = ${JSON.stringify(data)}\n\n`;
+    code += `# Chart\nplt.figure(figsize=(8, 6))\n`;
+
+    switch(chartType) {
+      case 'bar':
+        code += `plt.bar(labels, data, color='${colors[0]}')\n`; break;
+      case 'pie':
+        code += `plt.pie(data, labels=labels, colors=${JSON.stringify(colors.slice(0, data.length))}, autopct='%1.1f%%')\n`; break;
+      case 'line':
+        code += `plt.plot(labels, data, color='${colors[0]}', marker='o', linestyle='-')\n`; break;
+      case 'scatter':
+        code += `plt.scatter(labels, data, color='${colors[0]}', s=100)\n`; break;
+    }
+
+    code += `plt.title('${title}')\nplt.xlabel('${chart.config.options.scales?.x?.title?.text || 'X Axis'}')\n`;
+    code += `plt.ylabel('${chart.config.options.scales?.y?.title?.text || 'Y Axis'}')\n`;
+    code += `plt.xticks(rotation=45)\nplt.tight_layout()\nplt.show()`;
+  }
+
+  // ✅ Inject the code block below the chart
+  let container = chart.canvas.parentNode;
+  let existing = container.querySelector('.code-container');
+  if (existing) existing.remove();
+
+  const codeContainer = document.createElement('div');
+  codeContainer.className = 'code-container';
+  codeContainer.style.marginTop = '20px';
+  codeContainer.style.background = '#f5f5f5';
+  codeContainer.style.borderLeft = '4px solid #3f51b5';
+  codeContainer.style.padding = '10px';
+  codeContainer.style.borderRadius = '5px';
+  codeContainer.style.textAlign = 'left';
+
+  const pre = document.createElement('pre');
+  pre.textContent = code;
+
+  const downloadBtn = document.createElement('button');
+  downloadBtn.textContent = '📥 Download Code';
+  downloadBtn.style.marginTop = '10px';
+  downloadBtn.style.padding = '8px 16px';
+  downloadBtn.style.backgroundColor = '#4CAF50';
+  downloadBtn.style.color = 'white';
+  downloadBtn.style.border = 'none';
+  downloadBtn.style.borderRadius = '4px';
+  downloadBtn.style.cursor = 'pointer';
+  downloadBtn.onclick = () => downloadCode(code, lang);
+
+  codeContainer.append(pre, downloadBtn);
+  container.appendChild(codeContainer);
+}
+
+function downloadCode(code, lang) {
+  const blob = new Blob([code], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `chart_code.${lang === 'python' ? 'py' : 'r'}`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function generateMySQLCode() {
+  const table = document.getElementById('output-table');
+  if (!table.rows.length) return alert('No table data found!');
+
+  const headers = Array.from(table.rows[0].cells).map(cell => 
+    cell.textContent.trim().replace(/\s+/g, '_').toLowerCase()
+  );
+
+  let mysqlCode = `CREATE TABLE voice_data (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n`;
+  mysqlCode += headers.map(col => `  ${col} VARCHAR(255)`).join(',\n');
+  mysqlCode += '\n);';
+
+  // Display in modal
+  const modal = document.createElement('div');
+  modal.style.position = 'fixed';
+  modal.style.top = '20%';
+  modal.style.left = '50%';
+  modal.style.transform = 'translateX(-50%)';
+  modal.style.backgroundColor = 'white';
+  modal.style.padding = '20px';
+  modal.style.borderRadius = '8px';
+  modal.style.boxShadow = '0 0 20px rgba(0,0,0,0.2)';
+  modal.style.zIndex = '10000';
+  modal.style.maxWidth = '80%';
+
+  const code = document.createElement('pre');
+  code.textContent = mysqlCode;
+  code.style.overflow = 'auto';
+  code.style.maxHeight = '60vh';
+  code.style.background = '#f5f5f5';
+  code.style.padding = '15px';
+  code.style.borderLeft = '4px solid #3f51b5';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = 'Close';
+  closeBtn.style.marginTop = '10px';
+  closeBtn.style.padding = '8px 16px';
+  closeBtn.onclick = () => modal.remove();
+
+  const downloadBtn = document.createElement('button');
+  downloadBtn.textContent = '📥 Download SQL';
+  downloadBtn.style.marginLeft = '10px';
+  downloadBtn.style.backgroundColor = '#4CAF50';
+  downloadBtn.style.color = 'white';
+  downloadBtn.style.border = 'none';
+  downloadBtn.style.padding = '8px 16px';
+  downloadBtn.style.borderRadius = '4px';
+  downloadBtn.onclick = () => {
+    const blob = new Blob([mysqlCode], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'voice_to_data.sql';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  modal.append(code, closeBtn, downloadBtn);
+  document.body.appendChild(modal);
+}
+
+    new Sortable(document.getElementById('chart-container-wrapper'), { animation: 150 });
+
+    async function generateTablePDF() {
+      const filename = prompt("Enter filename for PDF:");
+      if (!filename) return;
+      const container = document.getElementById("table-container");
+      const canvas = await html2canvas(container);
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jspdf.jsPDF();
+      pdf.addImage(imgData, "PNG", 10, 10, 190, 0);
+      pdf.save(filename + ".pdf");
+    }
+
+    async function generateChartsPDF() {
+      const filename = prompt("Enter filename for PDF:");
+      if (!filename) return;
+      const container = document.getElementById("chart-container-wrapper");
+      const canvas = await html2canvas(container);
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jspdf.jsPDF();
+      pdf.addImage(imgData, "PNG", 10, 10, 190, 0);
+      pdf.save(filename + ".pdf");
+    }
+  </script>
+
+</body>
+</html>

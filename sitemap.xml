@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://yourdomain.com/</loc>
+  </url>
+  <url>
+    <loc>https://yourdomain.com/charts.html</loc>
+  </url>
+  <url>
+    <loc>https://yourdomain.com/analytics.html</loc>
+  </url>
+  <url>
+    <loc>https://yourdomain.com/data-cleaning.html</loc>
+  </url>
+  <url>
+    <loc>https://yourdomain.com/import-export.html</loc>
+  </url>
+  <url>
+    <loc>https://yourdomain.com/pdf-generator.html</loc>
+  </url>
+  <url>
+    <loc>https://yourdomain.com/about.html</loc>
+  </url>
+  <url>
+    <loc>https://yourdomain.com/contact.html</loc>
+  </url>
+  <url>
+    <loc>https://yourdomain.com/privacy-policy.html</loc>
+  </url>
+  <url>
+    <loc>https://yourdomain.com/terms-of-service.html</loc>
+  </url>
+</urlset>
